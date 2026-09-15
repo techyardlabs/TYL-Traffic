@@ -1,14 +1,27 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
+import fs from "fs";
 import { trafficClusterManager } from "./server/queueManager";
 import { testDatabaseConnection, initializeDatabaseSchema, saveCampaignToDb } from "./server/database";
 import { testRedisPing, resetRedisClient, getActiveRedisUrl } from "./server/redisClient";
 import { authenticateUser, verifyToken, updateAdminPassword, getPublicAuthInfo, requireAuth } from "./server/auth";
 
+const currentDir = typeof __dirname !== "undefined" ? __dirname : process.cwd();
+
+// Prevent unexpected unhandled exceptions from terminating the server in production
+process.on("uncaughtException", (err) => {
+  console.error("[TYL Traffic] Uncaught Exception:", err);
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[TYL Traffic] Unhandled Rejection at:", promise, "reason:", reason);
+});
+
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  // Bound to port 3000 for standard dev / Hostinger, with dynamic port support in production
+  const PORT = process.env.NODE_ENV === "production" && process.env.PORT && process.env.PORT !== "8080"
+    ? parseInt(process.env.PORT, 10)
+    : 3000;
 
   app.use(express.json());
 
@@ -170,23 +183,43 @@ async function startServer() {
     res.json(result);
   });
 
-  // Vite middleware setup
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
+  // Vite middleware setup (development) vs Static serving (production/Hostinger)
+  const candidateDistPaths = [
+    path.join(process.cwd(), "dist"),
+    path.resolve(currentDir),
+    path.resolve(currentDir, "..", "dist"),
+  ];
+  const distPath = candidateDistPaths.find((p) => fs.existsSync(path.join(p, "index.html")));
+
+  if (process.env.NODE_ENV !== "development" && distPath) {
+    // Production mode: Serve pre-built static bundle
+    console.log(`[TYL Traffic] Serving production static assets from ${distPath}`);
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
+  } else {
+    // Development mode: Boot Vite middleware
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } catch (viteErr) {
+      console.warn("[TYL Traffic] Vite middleware not loaded, falling back to static:", viteErr);
+      if (distPath) {
+        app.use(express.static(distPath));
+        app.get("*", (req, res) => {
+          res.sendFile(path.join(distPath, "index.html"));
+        });
+      }
+    }
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`SparkTraffic Server & Queue Orchestrator running on http://localhost:${PORT}`);
+    console.log(`TYL Traffic Cluster Orchestrator running on http://0.0.0.0:${PORT}`);
   });
 }
 
