@@ -1,0 +1,6 @@
+{
+  "name": "TYL Traffic",
+  "description": "TYL Traffic — Enterprise residential proxy traffic simulation, distributed queue orchestration, and campaign management portal by Techyard Labs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 620" width="100%" height="100%">
+  <defs>
+    <!-- Left Wing Gradients -->
+    <linearGradient id="left-top-grad" x1="0%" y1="0%" x2="100%" y2="80%">
+      <stop offset="0%" stop-color="#FF3823"/>
+      <stop offset="60%" stop-color="#FF6A00"/>
+      <stop offset="100%" stop-color="#FFA800"/>
+    </linearGradient>
+    
+    <linearGradient id="left-mid-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF5722"/>
+      <stop offset="40%" stop-color="#FF9800"/>
+      <stop offset="100%" stop-color="#FFD600"/>
+    </linearGradient>
+
+    <linearGradient id="left-lower-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D81B60"/>
+      <stop offset="50%" stop-color="#E91E63"/>
+      <stop offset="100%" stop-color="#FF1744"/>
+    </linearGradient>
+
+    <linearGradient id="left-facet-bottom" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#C2185B"/>
+      <stop offset="100%" stop-color="#E53935"/>
+    </linearGradient>
+
+    <!-- Right Wing Gradients -->
+    <linearGradient id="right-top-grad" x1="100%" y1="0%" x2="0%" y2="80%">
+      <stop offset="0%" stop-color="#00D2FF"/>
+      <stop offset="60%" stop-color="#00A2FF"/>
+      <stop offset="100%" stop-color="#0072FF"/>
+    </linearGradient>
+
+    <linearGradient id="right-mid-grad" x1="100%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#0091EA"/>
+      <stop offset="50%" stop-color="#2979FF"/>
+      <stop offset="100%" stop-color="#3D5AFE"/>
+    </linearGradient>
+
+    <linearGradient id="right-lower-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#651FFF"/>
+      <stop offset="60%" stop-color="#7C4DFF"/>
+      <stop offset="100%" stop-color="#9C27B0"/>
+    </linearGradient>
+
+    <linearGradient id="right-facet-bottom" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#4A148C"/>
+      <stop offset="100%" stop-color="#7B1FA2"/>
+    </linearGradient>
+
+    <filter id="subtle-glow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.25" flood-color="#000000"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#subtle-glow)">
+    <!-- LEFT WING -->
+    <!-- Top-left outer faceted triangle/trapezoid -->
+    <polygon points="60,18 293,124 200,195" fill="url(#left-top-grad)"/>
+    <polygon points="60,18 200,195 210,135" fill="#FF4500" opacity="0.85"/>
+    
+    <!-- Upper-mid golden yellow polygon -->
+    <polygon points="200,195 293,124 293,285 210,240" fill="url(#left-mid-grad)"/>
+    
+    <!-- Lower left magenta outer facet -->
+    <polygon points="200,195 210,240 210,310 225,325 210,240" fill="#D81B60" opacity="0.9"/>
+    <polygon points="210,240 293,285 293,395 220,310" fill="url(#left-lower-grad)"/>
+    <polygon points="220,310 293,395 293,405 215,315" fill="url(#left-facet-bottom)"/>
+
+    <!-- RIGHT WING -->
+    <!-- Top-right outer faceted triangle/trapezoid -->
+    <polygon points="540,18 307,124 400,195" fill="url(#right-top-grad)"/>
+    <polygon points="540,18 400,195 390,135" fill="#0091EA" opacity="0.85"/>
+    
+    <!-- Upper-mid azure blue polygon -->
+    <polygon points="400,195 307,124 307,285 390,240" fill="url(#right-mid-grad)"/>
+    
+    <!-- Lower right purple/violet facet -->
+    <polygon points="400,195 390,240 390,310 375,325 390,240" fill="#651FFF" opacity="0.9"/>
+    <polygon points="390,240 307,285 307,395 380,310" fill="url(#right-lower-grad)"/>
+    <polygon points="380,310 307,395 307,405 385,315" fill="url(#right-facet-bottom)"/>
+  </g>
+
+  <!-- TYPOGRAPHY -->
+  <g text-anchor="middle" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif">
+    <!-- TECHYARD LABS -->
+    <text x="300" y="490" font-size="44" font-weight="900" letter-spacing="4" fill="#FFFFFF">TECHYARD LABS</text>
+    <!-- EMPOWERED BY INNOVATION -->
+    <text x="300" y="535" font-size="20" font-weight="600" letter-spacing="8" fill="#94A3B8">EMPOWERED BY INNOVATION</text>
+  </g>
+</svg>

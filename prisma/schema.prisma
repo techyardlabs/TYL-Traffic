@@ -1,0 +1,240 @@
+// Prisma Database Schema for SparkTraffic High-Concurrency Simulation Platform
+// Fully compliant with PostgreSQL and Drizzle / Prisma ORM generators
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING
+  RUNNING
+  PAUSED
+  COMPLETED
+  ERROR_INSUFFICIENT_CREDITS
+  STOPPED_RATE_LIMIT
+}
+
+enum UserTier {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+  CUSTOM_SCALE
+}
+
+enum ProxyProvider {
+  BRIGHT_DATA
+  OXYLABS
+  SMARTPROXY
+  WEBSHARE
+  CUSTOM_RESIDENTIAL
+}
+
+enum DeviceCategory {
+  DESKTOP
+  MOBILE
+  TABLET
+  MIXED
+}
+
+model User {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  passwordHash    String
+  name            String?
+  tier            UserTier       @default(STARTER)
+  creditsBalance  Int            @default(25000)
+  apiKey          String         @unique @default(cuid())
+  concurrencyCap  Int            @default(50)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  campaigns       Campaign[]
+  transactions    CreditTransaction[]
+  apiKeys         ApiKey[]
+
+  @@index([email])
+  @@index([apiKey])
+  @@map("users")
+}
+
+model Campaign {
+  id                  String         @id @default(uuid())
+  userId              String
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name                String
+  targetDomain        String
+  status              CampaignStatus @default(RUNNING)
+  
+  // Volume & Speed parameters
+  dailyLimit          Int            @default(10000)
+  totalViewsTarget    Int            @default(50000)
+  totalViewsDelivered Int            @default(0)
+  totalVisitsDelivered Int           @default(0)
+  bounceRatePercent   Int            @default(25)
+  returnRatePercent   Int            @default(15)
+  dwellTimeMinSeconds Int            @default(30)
+  dwellTimeMaxSeconds Int            @default(120)
+  randomizeDwell      Boolean        @default(true)
+  
+  // Routing & Splitting
+  innerPagesPerVisit  Int            @default(3)
+  entryUrls           String[]
+  innerUrls           String[]
+  exitUrls            String[]
+  autoCrawlSitemap    Boolean        @default(false)
+  sitemapUrl          String?
+  
+  // Traffic Sources & Allocations (in %)
+  directPercent       Int            @default(30)
+  organicPercent      Int            @default(45)
+  socialPercent       Int            @default(15)
+  customPercent       Int            @default(10)
+  
+  // Complex JSON configuration state
+  configJson          Json
+  
+  // Timestamps
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  stats               CampaignStat[]
+  executionLogs       ExecutionLog[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([targetDomain])
+  @@map("campaigns")
+}
+
+model CampaignStat {
+  id                  String    @id @default(uuid())
+  campaignId          String
+  campaign            Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  timestamp           DateTime  @default(now())
+  deliveredViews      Int       @default(0)
+  deliveredUsers      Int       @default(0)
+  bounceCount         Int       @default(0)
+  avgDwellTimeSeconds Float     @default(0)
+  countryCode         String    @db.VarChar(5)
+  deviceCategory      String    @default("DESKTOP") @db.VarChar(20)
+  creditsConsumed     Int       @default(0)
+
+  @@index([campaignId, timestamp])
+  @@index([countryCode])
+  @@map("campaign_stats")
+}
+
+model ProxyPool {
+  id              String        @id @default(uuid())
+  provider        ProxyProvider @default(BRIGHT_DATA)
+  host            String
+  port            Int
+  username        String
+  password        String
+  authType        String        @default("HTTP_BASIC")
+  active          Boolean       @default(true)
+  countrySupport  String[]      @default(["US", "GB", "DE", "IN", "CA", "FR", "AU"])
+  supportsSticky  Boolean       @default(true)
+  maxConcurrency  Int           @default(1000)
+  currentLoad     Int           @default(0)
+  latencyAvgMs    Int           @default(180)
+  lastCheckedAt   DateTime      @default(now())
+
+  executionLogs   ExecutionLog[]
+
+  @@index([provider, active])
+  @@map("proxy_pools")
+}
+
+model WorkerNode {
+  id              String         @id @default(uuid())
+  hostname        String         @unique
+  region          String         @default("us-east-1")
+  ipAddress       String
+  activeBrowsers  Int            @default(0)
+  maxCapacity     Int            @default(64)
+  cpuUsagePct     Float          @default(0.0)
+  memoryUsagePct  Float          @default(0.0)
+  status          String         @default("HEALTHY")
+  lastHeartbeat   DateTime       @default(now())
+  createdAt       DateTime       @default(now())
+
+  executionLogs   ExecutionLog[]
+
+  @@index([status, lastHeartbeat])
+  @@map("worker_nodes")
+}
+
+model ExecutionLog {
+  id                  String      @id @default(uuid())
+  campaignId          String
+  campaign            Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  workerId            String?
+  worker              WorkerNode? @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  
+  proxyPoolId         String?
+  proxyPool           ProxyPool?  @relation(fields: [proxyPoolId], references: [id], onDelete: SetNull)
+  
+  ipAddress           String?
+  geoCountry          String      @db.VarChar(5)
+  geoCity             String?
+  deviceType          String
+  browserEngine       String      @default("Chromium-Stealth")
+  userAgent           String
+  
+  entryUrl            String
+  targetUrl           String
+  pageViewsDelivered  Int         @default(1)
+  dwellTimeSeconds    Int         @default(0)
+  bounced             Boolean     @default(false)
+  eventsTriggered     Int         @default(0)
+  
+  status              String      @default("SUCCESS") // SUCCESS, TIMEOUT, PROXY_ERROR, BLOCKED
+  errorMessage        String?
+  durationMs          Int         @default(0)
+  createdAt           DateTime    @default(now())
+
+  @@index([campaignId, createdAt])
+  @@index([status])
+  @@map("execution_logs")
+}
+
+model CreditTransaction {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  amount          Int       // Positive for top-up, negative for campaign spend
+  balanceAfter    Int
+  description     String
+  referenceId     String?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@map("credit_transactions")
+}
+
+model ApiKey {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name            String
+  keyHash         String    @unique
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+  @@map("api_keys")
+}
