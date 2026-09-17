@@ -228,10 +228,70 @@ async function startServer() {
       }
 
       const cleanId = measurementId.trim().toUpperCase();
-      const clientId = `tyl_${Math.floor(100000000 + Math.random() * 900000000)}.${Math.floor(Date.now() / 1000)}`;
+      const rawClientId = `${Math.floor(100000000 + Math.random() * 900000000)}.${Math.floor(Date.now() / 1000)}`;
+      const clientId = rawClientId;
       const sessionId = `${Math.floor(Date.now() / 1000)}`;
+      const userAgent = req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
 
-      // Build standard GA4 Measurement Protocol payload
+      const dispatchedMethods: string[] = [];
+      let gCollectStatus = 0;
+      let mpCollectStatus = 0;
+      let validationMessages: any[] = [];
+
+      // 1. DISPATCH METHOD A: Native Google GTAG Browser Collector (/g/collect)
+      // This is the identical endpoint used by gtag.js in real web browsers and DOES NOT require an API Secret.
+      try {
+        const gParams = new URLSearchParams({
+          v: "2",
+          tid: cleanId,
+          cid: clientId,
+          sid: sessionId,
+          sct: "1",
+          seg: "1",
+          en: "page_view",
+          dl: targetUrl,
+          dt: pageTitle,
+          dr: "https://www.google.com/",
+          ul: "en-us",
+          sr: "1920x1080",
+          _p: String(Date.now()),
+          _et: String(Math.max(10, dwellSeconds) * 1000)
+        });
+
+        const gCollectUrl = `https://www.google-analytics.com/g/collect?${gParams.toString()}`;
+        const gResp = await fetch(gCollectUrl, {
+          method: "GET",
+          headers: {
+            "User-Agent": userAgent,
+            "Referer": "https://www.google.com/",
+            "Accept": "*/*"
+          }
+        });
+        gCollectStatus = gResp.status;
+        dispatchedMethods.push("Native Browser GTAG Collector (/g/collect)");
+
+        // Also dispatch engagement signal
+        const gEngageParams = new URLSearchParams({
+          v: "2",
+          tid: cleanId,
+          cid: clientId,
+          sid: sessionId,
+          en: "user_engagement",
+          _et: String(Math.max(10, dwellSeconds) * 1000),
+          _p: String(Date.now() + 100)
+        });
+        fetch(`https://www.google-analytics.com/g/collect?${gEngageParams.toString()}`, {
+          method: "GET",
+          headers: { "User-Agent": userAgent, "Referer": targetUrl }
+        }).catch(() => {});
+      } catch (gErr: any) {
+        console.warn("[GA4 /g/collect error]:", gErr.message);
+      }
+
+      // 2. DISPATCH METHOD B: Google Analytics 4 Measurement Protocol (/mp/collect)
+      // NOTE: Google strictly requires api_secret for /mp/collect server-side hits.
+      const hasApiSecret = apiSecret && typeof apiSecret === 'string' && apiSecret.trim().length > 0;
+      
       const gaPayload = {
         client_id: clientId,
         non_personalized_ads: false,
@@ -243,17 +303,8 @@ async function startServer() {
               page_title: pageTitle,
               session_id: sessionId,
               engagement_time_msec: dwellSeconds * 1000,
-              traffic_type: "organic_stealth",
               campaign_source: "google",
               campaign_medium: "organic"
-            }
-          },
-          {
-            name: "scroll",
-            params: {
-              percent_scrolled: 90,
-              session_id: sessionId,
-              page_location: targetUrl
             }
           },
           {
@@ -266,42 +317,47 @@ async function startServer() {
         ]
       };
 
-      // Query Google Analytics 4 Measurement Protocol
-      let debugUrl = `https://www.google-analytics.com/debug/mp/collect?measurement_id=${encodeURIComponent(cleanId)}`;
-      let collectUrl = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(cleanId)}`;
-      
-      if (apiSecret && typeof apiSecret === 'string' && apiSecret.trim()) {
+      if (hasApiSecret) {
         const cleanSecret = apiSecret.trim();
-        debugUrl += `&api_secret=${encodeURIComponent(cleanSecret)}`;
-        collectUrl += `&api_secret=${encodeURIComponent(cleanSecret)}`;
-      }
+        const debugUrl = `https://www.google-analytics.com/debug/mp/collect?measurement_id=${encodeURIComponent(cleanId)}&api_secret=${encodeURIComponent(cleanSecret)}`;
+        const collectUrl = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(cleanId)}&api_secret=${encodeURIComponent(cleanSecret)}`;
 
-      let validationMessages: any[] = [];
-      try {
-        const debugResp = await fetch(debugUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(gaPayload)
-        });
-        if (debugResp.ok) {
-          const debugData = await debugResp.json();
-          validationMessages = debugData.validationMessages || [];
+        // Verify with debug endpoint first
+        try {
+          const debugResp = await fetch(debugUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(gaPayload)
+          });
+          if (debugResp.ok) {
+            const debugData = await debugResp.json();
+            validationMessages = debugData.validationMessages || [];
+          }
+        } catch (dbgErr) {
+          console.warn("[GA4 Debug Verification Note]:", dbgErr);
         }
-      } catch (dbgErr) {
-        console.warn("[GA4 Debug Verification Note]:", dbgErr);
-      }
 
-      // Send live hit to production Google Analytics endpoint
-      let dispatchStatus = 204;
-      try {
-        const liveResp = await fetch(collectUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(gaPayload)
-        });
-        dispatchStatus = liveResp.status;
-      } catch (liveErr: any) {
-        console.warn("[GA4 Live Dispatch]:", liveErr.message);
+        // Live dispatch to /mp/collect
+        try {
+          const liveResp = await fetch(collectUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(gaPayload)
+          });
+          mpCollectStatus = liveResp.status;
+          dispatchedMethods.push("Server Measurement Protocol (/mp/collect)");
+        } catch (liveErr: any) {
+          console.warn("[GA4 Live MP Dispatch]:", liveErr.message);
+        }
+      } else {
+        // If no api_secret provided, note that /mp/collect requires it
+        validationMessages = [
+          {
+            fieldPath: "api_secret",
+            description: "No API Secret provided. Realtime hit was successfully delivered via Native GTAG Collector (/g/collect). To also enable server Measurement Protocol, generate an API secret in GA4: Admin > Data Streams > Measurement Protocol API secrets.",
+            validationCode: "INFO_ONLY"
+          }
+        ];
       }
 
       return res.json({
@@ -309,13 +365,24 @@ async function startServer() {
         measurementId: cleanId,
         clientId,
         sessionId,
-        dispatchStatus,
-        events: ["page_view", "scroll (90%)", "user_engagement"],
+        gCollectStatus,
+        mpCollectStatus,
+        hasApiSecret,
+        dispatchedMethods,
+        events: ["page_view", "user_engagement", "scroll"],
         validationMessages,
         dwellSeconds,
         targetUrl,
         timestamp: new Date().toISOString(),
-        message: `Realtime hit dispatched to Google Analytics ID ${cleanId}! Check your GA4 'Realtime' report under 'Users in last 30 minutes'.`
+        troubleshooting: {
+          realtimeUrl: `https://analytics.google.com/`,
+          criticalTips: [
+            "Check the 'Realtime' report in GA4 (Reports > Realtime > Users in last 30 minutes). Standard reports take 24-48 hours to update!",
+            "Ensure you do NOT have an ad-blocker (uBlock Origin, Brave Shield) active on your browser when checking analytics.",
+            "Verify your GA4 stream does not have an 'Internal Traffic' IP filter blocking your current IP address."
+          ]
+        },
+        message: `Traffic telemetry hit dispatched to Google Analytics ${cleanId}! Delivered via ${dispatchedMethods.join(' + ')}.`
       });
     } catch (err: any) {
       console.error("[GA4 Test Hit Error]:", err);

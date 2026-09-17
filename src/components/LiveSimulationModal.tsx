@@ -97,13 +97,54 @@ export const LiveSimulationModal: React.FC<Props> = ({
 
     const timer3 = setTimeout(() => {
       setProgress(65);
+      const isGaActive = !!(campaign.advancedTracking?.enableGoogleAnalytics && campaign.advancedTracking?.gaMeasurementId);
+      
+      // If GA4 is configured, dispatch telemetry directly
+      if (isGaActive) {
+        const measId = campaign.advancedTracking.gaMeasurementId.trim().toUpperCase();
+        // Client beacon
+        try {
+          const clientParams = new URLSearchParams({
+            v: '2',
+            tid: measId,
+            cid: `${Math.floor(100000000 + Math.random() * 900000000)}.${Math.floor(Date.now() / 1000)}`,
+            sid: `${Math.floor(Date.now() / 1000)}`,
+            sct: '1',
+            seg: '1',
+            en: 'page_view',
+            dl: task.navigationFlow.entryUrl,
+            dt: `Session - ${campaign.targetDomain}`,
+            dr: task.headersAndCookies.referrer || 'https://www.google.com/',
+            _p: String(Date.now()),
+            _et: String(task.navigationFlow.dwellTimeSeconds * 1000)
+          });
+          fetch(`https://www.google-analytics.com/g/collect?${clientParams.toString()}`, {
+            method: 'GET',
+            mode: 'no-cors'
+          }).catch(() => {});
+        } catch (_) {}
+
+        // Server hit
+        fetch('/api/traffic/test-ga4', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            measurementId: measId,
+            apiSecret: campaign.advancedTracking.gaApiSecret?.trim() || undefined,
+            targetUrl: task.navigationFlow.entryUrl,
+            pageTitle: `Live Simulation - ${campaign.targetDomain}`,
+            dwellSeconds: task.navigationFlow.dwellTimeSeconds
+          })
+        }).catch(() => {});
+      }
+
       setEvents(prev => [
         ...prev,
         {
           id: `ev_4`,
           timestamp: new Date().toISOString().split('T')[1].slice(0, 8),
           phase: 'NAVIGATE',
-          message: `Navigated to Entry URL [${task.navigationFlow.entryUrl}] with Referrer [${task.headersAndCookies.referrer || 'Direct'}]`,
+          message: `Navigated to Entry URL [${task.navigationFlow.entryUrl}] with Referrer [${task.headersAndCookies.referrer || 'Direct'}]${isGaActive ? ` (Dispatched GA4 telemetry to ${campaign.advancedTracking.gaMeasurementId})` : ''}`,
           level: 'success'
         }
       ]);

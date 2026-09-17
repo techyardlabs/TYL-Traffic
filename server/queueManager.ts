@@ -15,6 +15,8 @@ export interface TrafficJob {
   innerUrls: string[];
   dwellSeconds: number;
   willBounce: boolean;
+  gaMeasurementId?: string;
+  gaApiSecret?: string;
   status: 'queued' | 'processing' | 'completed' | 'failed';
   assignedWorkerId?: string;
   createdAt: string;
@@ -128,6 +130,8 @@ class TrafficClusterManager {
       innerUrls,
       dwellSeconds,
       willBounce,
+      gaMeasurementId: campaign.advancedTracking?.enableGoogleAnalytics ? campaign.advancedTracking?.gaMeasurementId : undefined,
+      gaApiSecret: campaign.advancedTracking?.enableGoogleAnalytics ? campaign.advancedTracking?.gaApiSecret : undefined,
       status: 'queued',
       createdAt: new Date().toISOString(),
     };
@@ -225,6 +229,57 @@ class TrafficClusterManager {
         httpStatus = res.status;
       } catch (err: any) {
         httpStatus = 200;
+      }
+
+      // Dispatch real Google Analytics hit if configured
+      if (job.gaMeasurementId && job.gaMeasurementId.trim().startsWith('G-')) {
+        const cleanId = job.gaMeasurementId.trim().toUpperCase();
+        const cid = `${Math.floor(100000000 + Math.random() * 900000000)}.${Math.floor(Date.now() / 1000)}`;
+        const sid = `${Math.floor(Date.now() / 1000)}`;
+        
+        // 1. GTAG Browser Collector (/g/collect)
+        try {
+          const gParams = new URLSearchParams({
+            v: "2",
+            tid: cleanId,
+            cid: cid,
+            sid: sid,
+            sct: "1",
+            seg: "1",
+            en: "page_view",
+            dl: job.targetUrl,
+            dr: "https://www.google.com/",
+            ul: "en-us",
+            sr: `${job.viewport.width}x${job.viewport.height}`,
+            _p: String(Date.now()),
+            _et: String(Math.max(15, job.dwellSeconds) * 1000)
+          });
+          fetch(`https://www.google-analytics.com/g/collect?${gParams.toString()}`, {
+            method: 'GET',
+            headers: { 'User-Agent': job.userAgent, 'Referer': 'https://www.google.com/' }
+          }).catch(() => {});
+        } catch (_) {}
+
+        // 2. Measurement Protocol if API Secret is provided
+        if (job.gaApiSecret && job.gaApiSecret.trim()) {
+          try {
+            fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(cleanId)}&api_secret=${encodeURIComponent(job.gaApiSecret.trim())}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                client_id: cid,
+                events: [{
+                  name: 'page_view',
+                  params: {
+                    page_location: job.targetUrl,
+                    session_id: sid,
+                    engagement_time_msec: job.dwellSeconds * 1000
+                  }
+                }]
+              })
+            }).catch(() => {});
+          } catch (_) {}
+        }
       }
 
       await new Promise(r => setTimeout(r, Math.min(1500, job.dwellSeconds * 40)));

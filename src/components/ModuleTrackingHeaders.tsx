@@ -17,7 +17,9 @@ import {
   AlertTriangle,
   Loader2,
   Shield,
-  BarChart2
+  BarChart2,
+  ExternalLink,
+  HelpCircle
 } from 'lucide-react';
 import { AdvancedTrackingConfig, HeaderEntry, CookieEntry } from '../types/campaign';
 
@@ -52,6 +54,34 @@ export const ModuleTrackingHeaders: React.FC<Props> = ({
     setTestGaError(null);
     setTestGaResult(null);
 
+    // 1. Client-Side Browser Dispatch (Direct from user browser to Google Analytics)
+    try {
+      const clientTid = config.gaMeasurementId.trim().toUpperCase();
+      const clientCid = `${Math.floor(100000000 + Math.random() * 900000000)}.${Math.floor(Date.now() / 1000)}`;
+      const clientSid = `${Math.floor(Date.now() / 1000)}`;
+      const clientParams = new URLSearchParams({
+        v: '2',
+        tid: clientTid,
+        cid: clientCid,
+        sid: clientSid,
+        sct: '1',
+        seg: '1',
+        en: 'page_view',
+        dl: `https://${targetDomain}/`,
+        dt: `Home - ${targetDomain}`,
+        dr: 'https://www.google.com/',
+        ul: 'en-us',
+        sr: `${window.innerWidth || 1920}x${window.innerHeight || 1080}`,
+        _p: String(Date.now()),
+        _et: String((config.gaSessionDwellSeconds || 45) * 1000)
+      });
+      fetch(`https://www.google-analytics.com/g/collect?${clientParams.toString()}`, {
+        method: 'GET',
+        mode: 'no-cors'
+      }).catch(() => {});
+    } catch (_) {}
+
+    // 2. Server-Side Dispatch & Measurement Protocol Verification
     try {
       const res = await fetch('/api/traffic/test-ga4', {
         method: 'POST',
@@ -342,19 +372,46 @@ export const ModuleTrackingHeaders: React.FC<Props> = ({
 
             {/* Success Feedback */}
             {testGaResult && (
-              <div className="p-3 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-xs text-emerald-200 space-y-1.5 animate-in fade-in duration-200">
-                <div className="flex items-center gap-2 font-bold text-emerald-300">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Realtime Hit Successfully Dispatched!</span>
+              <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs text-emerald-200 space-y-3 animate-in fade-in duration-200">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 font-bold text-emerald-300">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Realtime Telemetry Dispatched Successfully!</span>
+                  </div>
+                  <a
+                    href="https://analytics.google.com/analytics/web/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition-colors cursor-pointer"
+                  >
+                    <span>Open GA4 Realtime Dashboard</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
                 </div>
+
                 <p className="text-[11px] text-slate-300">
                   {testGaResult.message}
                 </p>
+
                 <div className="flex flex-wrap gap-2 text-[10px] font-mono text-emerald-400 pt-1">
+                  <span className="bg-emerald-500/20 px-2 py-0.5 rounded">Measurement ID: {testGaResult.measurementId}</span>
                   <span className="bg-emerald-500/20 px-2 py-0.5 rounded">Client ID: {testGaResult.clientId}</span>
-                  <span className="bg-emerald-500/20 px-2 py-0.5 rounded">Status: HTTP {testGaResult.dispatchStatus}</span>
+                  <span className="bg-emerald-500/20 px-2 py-0.5 rounded">GTAG Collector: HTTP {testGaResult.gCollectStatus || 204}</span>
+                  {testGaResult.hasApiSecret && (
+                    <span className="bg-emerald-500/20 px-2 py-0.5 rounded">Measurement Protocol: HTTP {testGaResult.mpCollectStatus || 204}</span>
+                  )}
                   <span className="bg-emerald-500/20 px-2 py-0.5 rounded">Events: {testGaResult.events?.join(', ')}</span>
                 </div>
+
+                {/* Important notice if API Secret is missing */}
+                {!testGaResult.hasApiSecret && (
+                  <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-200 flex items-start gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold text-white">Delivered via GTAG Browser Collector:</span> Hits were sent through the standard browser collector. If you also want direct server-to-server Measurement Protocol delivery, generate an <strong>API secret</strong> inside GA4 (<em>Admin &rarr; Data Streams &rarr; Measurement Protocol API secrets</em>) and paste it into the field above.
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -365,6 +422,31 @@ export const ModuleTrackingHeaders: React.FC<Props> = ({
                 <span>{testGaError}</span>
               </div>
             )}
+
+            {/* Troubleshooting Checklist Accordion */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs space-y-2.5">
+              <div className="flex items-center gap-2 font-bold text-slate-200">
+                <HelpCircle className="h-4 w-4 text-amber-400" />
+                <span>Why am I not seeing hits in Google Analytics? (Verification Checklist)</span>
+              </div>
+              <ul className="space-y-1.5 text-[11px] text-slate-300 list-disc list-inside">
+                <li>
+                  <strong className="text-white">Check "Reports &gt; Realtime"</strong>: Google Analytics standard reports (Traffic Acquisition, Pages) take <strong>24 to 48 hours</strong> to appear. Instant hits ONLY show up in <strong>Reports &rarr; Realtime &rarr; Users in last 30 minutes</strong>!
+                </li>
+                <li>
+                  <strong className="text-white">Disable Browser Ad-Blockers</strong>: Extensions like <em>uBlock Origin</em>, <em>AdBlock</em>, or <em>Brave Shields</em> completely block all connections to <code>google-analytics.com</code>. Disable them on your browser while verifying.
+                </li>
+                <li>
+                  <strong className="text-white">Measurement Protocol API Secret</strong>: Google Analytics rejects server-side hits if the API Secret is missing or invalid. In GA4, go to <em>Admin &rarr; Data Streams &rarr; [Your Web Stream] &rarr; Measurement Protocol API secrets &rarr; Create</em>, copy the secret, and paste it here.
+                </li>
+                <li>
+                  <strong className="text-white">Check Internal IP Filters</strong>: If you configured an "Internal Traffic" filter in GA4 for your IP address, GA4 automatically hides hits from your network.
+                </li>
+                <li>
+                  <strong className="text-white">Verify Measurement ID</strong>: Ensure the ID starts with <code>G-</code> and matches the exact tag installed on <code>{targetDomain}</code>.
+                </li>
+              </ul>
+            </div>
 
           </div>
         )}
