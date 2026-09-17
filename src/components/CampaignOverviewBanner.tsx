@@ -12,18 +12,27 @@ import {
   ExternalLink,
   Edit2,
   Check,
-  Zap
+  Zap,
+  Plus,
+  Sliders,
+  ShieldCheck
 } from 'lucide-react';
 import { FullCampaignConfig, CampaignStatus } from '../types/campaign';
 
 interface Props {
   campaign: FullCampaignConfig;
   onUpdateCampaign: (updated: Partial<FullCampaignConfig>) => void;
+  onOpenAddWebsite?: () => void;
+  onOpenWebsitesManager?: () => void;
+  totalWebsitesCount?: number;
 }
 
 export const CampaignOverviewBanner: React.FC<Props> = ({
   campaign,
-  onUpdateCampaign
+  onUpdateCampaign,
+  onOpenAddWebsite,
+  onOpenWebsitesManager,
+  totalWebsitesCount = 1
 }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(campaign.name);
@@ -85,15 +94,38 @@ export const CampaignOverviewBanner: React.FC<Props> = ({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-800/70">
         
         {/* Left Info */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-              ID: {campaign.id}
+        <div className="space-y-3 flex-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-indigo-300 border border-slate-700">
+              Site ID: {campaign.id}
             </span>
             {getStatusBadge(campaign.status)}
-            <span className="text-xs text-slate-500">
-              Started: {new Date(campaign.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            <span className="text-xs text-slate-400">
+              Created: {new Date(campaign.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
+
+            {/* Quick Websites Manager Buttons */}
+            {onOpenAddWebsite && (
+              <button
+                id="btn-banner-add-website"
+                onClick={onOpenAddWebsite}
+                className="ml-auto inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Add Another Website</span>
+              </button>
+            )}
+
+            {onOpenWebsitesManager && (
+              <button
+                id="btn-banner-manage-websites"
+                onClick={onOpenWebsitesManager}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <Globe className="h-3.5 w-3.5 text-indigo-400" />
+                <span>Websites ({totalWebsitesCount})</span>
+              </button>
+            )}
           </div>
 
           {/* Project Title & Domain Editing */}
@@ -130,7 +162,7 @@ export const CampaignOverviewBanner: React.FC<Props> = ({
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-xl md:text-2xl font-extrabold text-white tracking-tight">
                 {campaign.name}
               </h1>
@@ -142,17 +174,17 @@ export const CampaignOverviewBanner: React.FC<Props> = ({
                   setIsEditingName(true);
                 }}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800/80 transition-colors cursor-pointer"
-                title="Edit Campaign Name & Target Domain"
+                title="Edit Website Name & Target Domain"
               >
                 <Edit2 className="h-4 w-4" />
               </button>
             </div>
           )}
 
-          {/* Root Domain Display */}
-          <div className="flex items-center gap-2 text-sm text-slate-300">
+          {/* Root Domain Display & Target Notice */}
+          <div className="flex items-center gap-2 text-sm text-slate-300 flex-wrap">
             <Globe className="h-4 w-4 text-indigo-400" />
-            <span className="text-slate-400 font-medium">Target Root:</span>
+            <span className="text-slate-400 font-medium">Configuring Traffic For:</span>
             <a 
               href={`https://${campaign.targetDomain}`}
               target="_blank" 
@@ -162,6 +194,9 @@ export const CampaignOverviewBanner: React.FC<Props> = ({
               https://{campaign.targetDomain}
               <ExternalLink className="h-3 w-3 inline" />
             </a>
+            <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+              Independent Traffic Rules
+            </span>
           </div>
         </div>
 

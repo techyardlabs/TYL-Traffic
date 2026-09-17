@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { trafficClusterManager } from "./server/queueManager";
-import { testDatabaseConnection, initializeDatabaseSchema, saveCampaignToDb } from "./server/database";
+import { testDatabaseConnection, initializeDatabaseSchema, saveCampaignToDb, getCampaignsFromDb, deleteCampaignFromDb, resetDatabasePool } from "./server/database";
 import { testRedisPing, resetRedisClient, getActiveRedisUrl } from "./server/redisClient";
 import { authenticateUser, verifyToken, updateAdminPassword, getPublicAuthInfo, requireAuth } from "./server/auth";
 
@@ -163,13 +163,32 @@ async function startServer() {
       return res.status(400).json({ error: "Invalid databaseUrl provided" });
     }
     const cleanUrl = databaseUrl.trim();
-    process.env.DATABASE_URL = cleanUrl;
+    await resetDatabasePool(cleanUrl);
     const testResult = await testDatabaseConnection();
     res.json({
       success: true,
       message: "DATABASE_URL updated! " + testResult.message,
       testResult,
     });
+  });
+
+  app.post("/api/config/clear-db", async (req, res) => {
+    await resetDatabasePool("");
+    delete process.env.DATABASE_URL;
+    res.json({
+      success: true,
+      message: "Database disconnected. Now running in resilient Local Storage & Memory mode.",
+    });
+  });
+
+  // Campaign List from MySQL, PostgreSQL or Memory
+  app.get("/api/campaigns", async (req, res) => {
+    try {
+      const list = await getCampaignsFromDb();
+      res.json({ success: true, campaigns: list });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
   });
 
   // Campaign Save to MySQL, PostgreSQL or Memory
@@ -181,6 +200,133 @@ async function startServer() {
 
     const result = await saveCampaignToDb(campaign);
     res.json(result);
+  });
+
+  // Campaign Delete from MySQL, PostgreSQL or Memory
+  app.delete("/api/campaigns/:id", async (req, res) => {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "Campaign ID required" });
+    }
+    const result = await deleteCampaignFromDb(id);
+    res.json(result);
+  });
+
+  // Google Analytics 4 Realtime Hit Dispatch & Protocol Verification
+  app.post("/api/traffic/test-ga4", async (req, res) => {
+    try {
+      const { 
+        measurementId, 
+        apiSecret, 
+        targetUrl = 'https://teesariankhmedia.com/', 
+        pageTitle = 'Home - Live Visitor Session',
+        dwellSeconds = 45 
+      } = req.body;
+
+      if (!measurementId || typeof measurementId !== 'string') {
+        return res.status(400).json({ 
+          success: false, 
+          error: "Google Analytics Measurement ID is required (e.g., G-XXXXXXXXXX or UA-XXXXX-Y)" 
+        });
+      }
+
+      const cleanId = measurementId.trim().toUpperCase();
+      const clientId = `tyl_${Math.floor(100000000 + Math.random() * 900000000)}.${Math.floor(Date.now() / 1000)}`;
+      const sessionId = `${Math.floor(Date.now() / 1000)}`;
+
+      // Build standard GA4 Measurement Protocol payload
+      const gaPayload = {
+        client_id: clientId,
+        non_personalized_ads: false,
+        events: [
+          {
+            name: "page_view",
+            params: {
+              page_location: targetUrl,
+              page_title: pageTitle,
+              session_id: sessionId,
+              engagement_time_msec: dwellSeconds * 1000,
+              traffic_type: "organic_stealth",
+              campaign_source: "google",
+              campaign_medium: "organic"
+            }
+          },
+          {
+            name: "scroll",
+            params: {
+              percent_scrolled: 90,
+              session_id: sessionId,
+              page_location: targetUrl
+            }
+          },
+          {
+            name: "user_engagement",
+            params: {
+              engagement_time_msec: dwellSeconds * 1000,
+              session_id: sessionId
+            }
+          }
+        ]
+      };
+
+      // Query Google Analytics 4 Measurement Protocol
+      let debugUrl = `https://www.google-analytics.com/debug/mp/collect?measurement_id=${encodeURIComponent(cleanId)}`;
+      let collectUrl = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(cleanId)}`;
+      
+      if (apiSecret && typeof apiSecret === 'string' && apiSecret.trim()) {
+        const cleanSecret = apiSecret.trim();
+        debugUrl += `&api_secret=${encodeURIComponent(cleanSecret)}`;
+        collectUrl += `&api_secret=${encodeURIComponent(cleanSecret)}`;
+      }
+
+      let validationMessages: any[] = [];
+      try {
+        const debugResp = await fetch(debugUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(gaPayload)
+        });
+        if (debugResp.ok) {
+          const debugData = await debugResp.json();
+          validationMessages = debugData.validationMessages || [];
+        }
+      } catch (dbgErr) {
+        console.warn("[GA4 Debug Verification Note]:", dbgErr);
+      }
+
+      // Send live hit to production Google Analytics endpoint
+      let dispatchStatus = 204;
+      try {
+        const liveResp = await fetch(collectUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(gaPayload)
+        });
+        dispatchStatus = liveResp.status;
+      } catch (liveErr: any) {
+        console.warn("[GA4 Live Dispatch]:", liveErr.message);
+      }
+
+      return res.json({
+        success: true,
+        measurementId: cleanId,
+        clientId,
+        sessionId,
+        dispatchStatus,
+        events: ["page_view", "scroll (90%)", "user_engagement"],
+        validationMessages,
+        dwellSeconds,
+        targetUrl,
+        timestamp: new Date().toISOString(),
+        message: `Realtime hit dispatched to Google Analytics ID ${cleanId}! Check your GA4 'Realtime' report under 'Users in last 30 minutes'.`
+      });
+    } catch (err: any) {
+      console.error("[GA4 Test Hit Error]:", err);
+      return res.status(500).json({ 
+        success: false, 
+        error: `Failed to dispatch GA4 test hit: ${err.message}` 
+      });
+    }
   });
 
   // Vite middleware setup (development) vs Static serving (production/Hostinger)

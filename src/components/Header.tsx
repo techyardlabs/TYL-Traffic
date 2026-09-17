@@ -14,7 +14,9 @@ import {
   Server,
   ShieldCheck,
   User,
-  LogOut
+  LogOut,
+  Plus,
+  Globe
 } from 'lucide-react';
 import { FullCampaignConfig, CampaignStatus } from '../types/campaign';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +33,8 @@ interface HeaderProps {
   onOpenPresets: () => void;
   onOpenClusterQueue: () => void;
   onOpenAccountSecurity?: () => void;
+  onOpenAddWebsite?: () => void;
+  onOpenWebsitesManager?: () => void;
   activeWorkersCount: number;
 }
 
@@ -45,6 +49,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPresets,
   onOpenClusterQueue,
   onOpenAccountSecurity,
+  onOpenAddWebsite,
+  onOpenWebsitesManager,
   activeWorkersCount
 }) => {
   const { user, logout } = useAuth();
@@ -65,26 +71,59 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Campaign Switcher & Preset Trigger */}
+        {/* Campaign Switcher, Add Site & Preset Trigger */}
         <div className="flex items-center gap-2.5 flex-wrap">
+          
+          {/* Prominent Add Website Button */}
+          {onOpenAddWebsite && (
+            <button
+              id="btn-header-add-website"
+              onClick={onOpenAddWebsite}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-indigo-600/30 transition-all cursor-pointer"
+              title="Add a New Website and Configure its Traffic Rules"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Site</span>
+            </button>
+          )}
+
+          {/* Active Website Selector */}
           <div className="relative">
             <select
               id="campaign-selector"
-              aria-label="Select active campaign"
+              aria-label="Select active website"
               value={currentCampaign.id}
               onChange={(e) => onSelectCampaign(e.target.value)}
-              className="bg-slate-950/80 border border-slate-700/80 hover:border-slate-600 text-slate-200 text-xs sm:text-sm font-medium rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer"
+              className="bg-slate-950/80 border border-indigo-500/40 hover:border-indigo-500 text-slate-200 text-xs sm:text-sm font-semibold rounded-lg pl-8 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer max-w-[210px] sm:max-w-[280px] truncate"
             >
               {campaigns.map((cmp) => (
                 <option key={cmp.id} value={cmp.id} className="bg-slate-900 text-slate-100">
-                  {cmp.name} ({cmp.targetDomain})
+                  🌐 {cmp.targetDomain} ({cmp.name})
                 </option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
-              <Layers className="h-3.5 w-3.5" />
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2.5 text-indigo-400">
+              <Globe className="h-3.5 w-3.5" />
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+              <Layers className="h-3 w-3" />
             </div>
           </div>
+
+          {/* All Websites Hub Button */}
+          {onOpenWebsitesManager && (
+            <button
+              id="btn-header-manage-websites"
+              onClick={onOpenWebsitesManager}
+              className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700/70 text-xs font-semibold transition-all cursor-pointer"
+              title="View & Configure All Added Websites"
+            >
+              <span className="hidden sm:inline">All Sites</span>
+              <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-mono text-[10px]">
+                {campaigns.length}
+              </span>
+            </button>
+          )}
 
           <button
             id="btn-presets"

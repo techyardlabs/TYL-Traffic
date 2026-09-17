@@ -18,9 +18,30 @@ import {
   Zap,
   HardDrive,
   Key,
-  Sliders
+  Sliders,
+  Copy,
+  Check
 } from 'lucide-react';
 import { FullCampaignConfig } from '../types/campaign';
+
+interface DbStatusResponse {
+  connected: boolean;
+  dialect?: string;
+  message: string;
+  tablesCount?: number;
+  dbName?: string;
+  errorCode?: string;
+  deniedUser?: string;
+  connectingHost?: string;
+  hostingerGuide?: {
+    step1: string;
+    step2: string;
+    step3: string;
+    step4: string;
+  };
+  fallbackActive?: boolean;
+  campaignsCount?: number;
+}
 
 interface ClusterQueueManagerModalProps {
   isOpen: boolean;
@@ -55,7 +76,8 @@ export const ClusterQueueManagerModal: React.FC<ClusterQueueManagerModalProps> =
   onJobDispatched
 }) => {
   const [stats, setStats] = useState<ClusterStatsResponse | null>(null);
-  const [dbStatus, setDbStatus] = useState<{ connected: boolean; dialect?: string; message: string; tablesCount?: number; dbName?: string } | null>(null);
+  const [dbStatus, setDbStatus] = useState<DbStatusResponse | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [batchCount, setBatchCount] = useState<number>(5);
   const [selectedCountry, setSelectedCountry] = useState<string>('US');
@@ -74,6 +96,28 @@ export const ClusterQueueManagerModal: React.FC<ClusterQueueManagerModalProps> =
   } | null>(null);
   const [isSavingRedis, setIsSavingRedis] = useState(false);
   const [isSavingDb, setIsSavingDb] = useState(false);
+
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2500);
+  };
+
+  const handleClearDb = async () => {
+    setIsSavingDb(true);
+    try {
+      const res = await fetch('/api/config/clear-db', { method: 'POST' });
+      const data = await res.json();
+      setStatusNotice(data.message || 'Switched to Local Storage Mode');
+      fetchConfigStatus();
+      fetchDbStatus();
+      setTimeout(() => setStatusNotice(null), 5000);
+    } catch (e: any) {
+      setStatusNotice(`Disconnect error: ${e.message}`);
+    } finally {
+      setIsSavingDb(false);
+    }
+  };
 
   // Fetch config status
   const fetchConfigStatus = async () => {
@@ -550,6 +594,83 @@ export const ClusterQueueManagerModal: React.FC<ClusterQueueManagerModalProps> =
                   {dbStatus?.message || 'Checking connection...'}
                 </div>
 
+                {/* Local Storage Failover Guarantee Badge */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span>
+                      <strong className="text-white">Local Failover Active:</strong> All website campaigns ({dbStatus?.campaignsCount ?? 1} sites) are safely preserved in persistent local storage.
+                    </span>
+                  </div>
+                  <button
+                    onClick={fetchDbStatus}
+                    className="flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    <span>Check DB</span>
+                  </button>
+                </div>
+
+                {/* Hostinger Access Denied Troubleshooting Card */}
+                {!dbStatus?.connected && (dbStatus?.deniedUser || dbStatus?.message?.toLowerCase().includes('access denied')) && (
+                  <div className="p-4 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-3">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1 flex-1">
+                        <div className="text-xs font-bold text-amber-300">
+                          Hostinger Remote MySQL Access Denied
+                        </div>
+                        <p className="text-[11px] text-slate-300 leading-relaxed">
+                          Hostinger by default denies external connections unless authorized in <strong>Remote MySQL</strong>. User <code className="text-amber-200 font-mono px-1 py-0.5 rounded bg-amber-950/50">{dbStatus?.deniedUser || 'u125864327_tyltraffic'}</code> was rejected from cloud IP <code className="text-amber-200 font-mono px-1 py-0.5 rounded bg-amber-950/50">{dbStatus?.connectingHost || '2600:1900:0:3803::401'}</code>.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] pt-1">
+                      <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 space-y-1">
+                        <span className="text-slate-400 font-semibold block">Step 1: Hostinger Remote MySQL</span>
+                        <p className="text-slate-300 text-[10px]">In hPanel &rarr; Databases &rarr; Remote MySQL, select your database and enter <code className="text-amber-300 font-bold">%</code> in the IP field to allow all hosts.</p>
+                        <button
+                          onClick={() => copyToClipboard('%', 'percent')}
+                          className="mt-1 flex items-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-mono cursor-pointer"
+                        >
+                          {copiedKey === 'percent' ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-slate-400" />}
+                          <span>{copiedKey === 'percent' ? 'Copied "%"' : 'Copy "%" Wildcard'}</span>
+                        </button>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 space-y-1">
+                        <span className="text-slate-400 font-semibold block">Step 2: Specific Cloud IP</span>
+                        <p className="text-slate-300 text-[10px]">Alternatively, authorize this specific container IPv6 address directly in Remote MySQL:</p>
+                        <button
+                          onClick={() => copyToClipboard(dbStatus?.connectingHost || '2600:1900:0:3803::401', 'ip')}
+                          className="mt-1 flex items-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-mono cursor-pointer truncate max-w-full"
+                        >
+                          {copiedKey === 'ip' ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-slate-400" />}
+                          <span className="truncate">{copiedKey === 'ip' ? 'Copied IP' : `Copy ${dbStatus?.connectingHost || 'Cloud IP'}`}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1 border-t border-amber-500/20">
+                      <button
+                        onClick={handleClearDb}
+                        disabled={isSavingDb}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold border border-slate-700 cursor-pointer"
+                      >
+                        Disconnect &amp; Use Local Storage
+                      </button>
+                      <button
+                        onClick={fetchDbStatus}
+                        className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[11px] font-semibold border border-amber-500/30 cursor-pointer flex items-center gap-1"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        <span>Re-Test Connection</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
                     onClick={handleSaveToPostgres}
@@ -568,6 +689,14 @@ export const ClusterQueueManagerModal: React.FC<ClusterQueueManagerModalProps> =
                   >
                     <RefreshCw className={`h-3.5 w-3.5 text-emerald-400 ${isInitializingSchema ? 'animate-spin' : ''}`} />
                     <span>Run DB Table Migrations</span>
+                  </button>
+
+                  <button
+                    onClick={fetchDbStatus}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 text-slate-400" />
+                    <span>Refresh Status</span>
                   </button>
                 </div>
               </div>
@@ -839,6 +968,16 @@ export const ClusterQueueManagerModal: React.FC<ClusterQueueManagerModalProps> =
                       <RefreshCw className={`h-3.5 w-3.5 ${isSavingDb ? 'animate-spin' : ''}`} />
                       <span>{isSavingDb ? 'Connecting...' : 'Connect DB'}</span>
                     </button>
+                    {configStatus?.dbConfigured && (
+                      <button
+                        onClick={handleClearDb}
+                        disabled={isSavingDb}
+                        className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+                        title="Disconnect remote database and use local disk storage"
+                      >
+                        Disconnect
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

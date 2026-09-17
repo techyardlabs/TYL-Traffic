@@ -218,6 +218,18 @@ export interface AdvancedTrackingConfig {
   
   customUserAgentOverride?: string;
   timezoneSpoofing: 'auto_by_geo' | 'manual' | 'disabled';
+
+  // Google Analytics 4 Measurement Protocol & GTAG Emulation
+  enableGoogleAnalytics: boolean;
+  gaMeasurementId?: string; // e.g. "G-XXXXXXXXXX" or legacy "UA-XXXXX-Y"
+  gaApiSecret?: string; // Optional Measurement Protocol API Secret
+  gaDispatchMode?: 'browser_gtag' | 'measurement_protocol' | 'hybrid';
+  gaSendPageViews?: boolean;
+  gaSendScrollEvents?: boolean;
+  gaSendUserEngagement?: boolean;
+  gaSendFormEvents?: boolean;
+  gaSendExternalClicks?: boolean;
+  gaSessionDwellSeconds?: number;
 }
 
 // Unified Full Campaign Configuration Model
@@ -225,6 +237,8 @@ export interface FullCampaignConfig {
   id: string;
   name: string;
   targetDomain: string;
+  projectCode?: string; // e.g. "WT10D0CF90SL" matching SparkTraffic
+  projectType?: 'Economy' | 'Professional' | 'Enterprise' | 'Free Demo';
   status: CampaignStatus;
   createdAt: string;
   updatedAt: string;

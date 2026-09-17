@@ -15,7 +15,291 @@ export const HOURLY_PRESETS: Record<string, number[]> = {
 
 export const INITIAL_CAMPAIGNS: FullCampaignConfig[] = [
   {
+    id: 'cmp_spark_teesariankh',
+    projectCode: 'WT10D0CF90SL',
+    projectType: 'Economy',
+    name: 'Teesari Ankh Media - News Traffic Boost',
+    targetDomain: 'teesariankhmedia.com',
+    status: 'RUNNING',
+    createdAt: '2026-08-14T00:00:00Z',
+    updatedAt: '2026-09-16T15:01:08Z',
+    dailyLimit: 15000,
+    totalViewsTarget: 60000,
+    totalViewsDelivered: 34102,
+    totalVisitsDelivered: 11367,
+    creditsBalance: 45900,
+    
+    volumeBehavior: {
+      visitsVolume: 15000,
+      pagesPerVisit: 3,
+      expectedTotalPageViews: 45000,
+      bounceRatePercent: 28,
+      returnRatePercent: 15,
+      dwellTimeMinSeconds: 30,
+      dwellTimeMaxSeconds: 90,
+      randomizeDwellTime: true,
+      scheduleCurvePreset: 'business_hours',
+      hourlySchedule: HOURLY_PRESETS.business_hours
+    },
+    
+    urlRouting: {
+      entryUrls: [
+        'https://teesariankhmedia.com/',
+        'https://teesariankhmedia.com/category/national-news/',
+        'https://teesariankhmedia.com/state-politics-bulletin/'
+      ],
+      innerUrls: [
+        'https://teesariankhmedia.com/breaking-news-live-updates/',
+        'https://teesariankhmedia.com/editorial-opinion-analysis/',
+        'https://teesariankhmedia.com/contact-editorial-desk/'
+      ],
+      exitUrls: [
+        'https://teesariankhmedia.com/archives/'
+      ],
+      innerPagesPerVisit: 3,
+      autoCrawlSitemap: true,
+      sitemapUrl: 'https://teesariankhmedia.com/sitemap_index.xml',
+      crawlDepth: 2,
+      followInternalOnly: true
+    },
+    
+    trafficSplitting: {
+      directPercent: 20,
+      organicPercent: 55,
+      socialPercent: 15,
+      customPercent: 10,
+      
+      searchEngines: [
+        { engine: 'google', percentage: 75 },
+        { engine: 'bing', percentage: 15 },
+        { engine: 'yahoo', percentage: 10 }
+      ],
+      organicKeywords: [
+        { keyword: 'teesari ankh media breaking news', searchEngine: 'google', weight: 45 },
+        { keyword: 'uttarakhand political live bulletin', searchEngine: 'google', weight: 35 },
+        { keyword: 'hindi news latest updates dehradun', searchEngine: 'bing', weight: 20 }
+      ],
+      
+      socialNetworks: [
+        { network: 'facebook', percentage: 50 },
+        { network: 'twitter', percentage: 30 },
+        { network: 'youtube', percentage: 20 }
+      ],
+      
+      customReferrers: [
+        { id: 'cr_tam1', url: 'https://news.google.com/publications/teesariankh', weight: 60 },
+        { id: 'cr_tam2', url: 'https://dailyhunt.in/news/india/hindi/teesari-ankh', weight: 40 }
+      ]
+    },
+    
+    deviceTargeting: {
+      mobileRatioPercent: 65,
+      desktopRatioPercent: 35,
+      desktopOS: { windows: 70, macos: 25, linux: 5 },
+      mobileOS: { android: 80, ios: 20 },
+      screenResolutions: [
+        { resolution: '1920x1080', type: 'desktop', selected: true },
+        { resolution: '390x844', type: 'mobile', selected: true },
+        { resolution: '412x915', type: 'mobile', selected: true }
+      ]
+    },
+    
+    geoProxy: {
+      targetingType: 'country',
+      provider: 'bright_data',
+      authType: 'http_basic',
+      sessionType: 'rotating',
+      countryAllocations: [
+        { countryCode: 'IN', countryName: 'India', flag: '🇮🇳', percentage: 75 },
+        { countryCode: 'US', countryName: 'United States', flag: '🇺🇸', percentage: 15 },
+        { countryCode: 'AE', countryName: 'United Arab Emirates', flag: '🇦🇪', percentage: 10 }
+      ]
+    },
+    
+    behavioralSimulation: {
+      enableScrollEvents: true,
+      scrollSessionsPercent: 88,
+      scrollDepthMinPercent: 35,
+      scrollDepthMaxPercent: 92,
+      scrollSpeed: 'natural_human',
+      enableInternalLinkClicks: true,
+      internalClickPercent: 65,
+      enableFormInteractions: false,
+      formInteractionPercent: 10,
+      enableMouseJitter: true,
+      mouseJitterIntensity: 'medium',
+      adBlockBypassEmulation: true,
+      stealthCanvasNoise: true,
+      stealthWebGlVendorMask: true,
+      stealthAudioContextSpoof: true
+    },
+    
+    advancedTracking: {
+      enableUtm: true,
+      utmSource: 'google_discover_in',
+      utmMedium: 'organic_feed',
+      utmCampaign: 'state_election_coverage',
+      utmTerm: 'news_bulletin',
+      utmContent: 'headline_card',
+      autoSyncAcceptLanguage: true,
+      customAcceptLanguage: 'hi-IN,hi;q=0.9,en-US;q=0.8,en;q=0.7',
+      customHeaders: [
+        { id: 'h_tam1', key: 'Sec-CH-UA-Platform', value: '"Android"', enabled: true }
+      ],
+      customCookies: [],
+      timezoneSpoofing: 'auto_by_geo',
+      
+      // Google Analytics 4 Measurement Protocol & GTAG Simulation
+      enableGoogleAnalytics: true,
+      gaMeasurementId: 'G-K8X9Y1Z2AB',
+      gaApiSecret: '',
+      gaDispatchMode: 'hybrid',
+      gaSendPageViews: true,
+      gaSendScrollEvents: true,
+      gaSendUserEngagement: true,
+      gaSendFormEvents: false,
+      gaSendExternalClicks: true,
+      gaSessionDwellSeconds: 65
+    }
+  },
+
+  {
+    id: 'cmp_spark_uttarakhand',
+    projectCode: 'WT136E506QLS',
+    projectType: 'Free Demo',
+    name: 'Uttarakhand Ab Tak - Regional News Authority',
+    targetDomain: 'uttarakhandabtak.com',
+    status: 'COMPLETED',
+    createdAt: '2026-08-17T10:00:00Z',
+    updatedAt: '2026-09-16T15:00:00Z',
+    dailyLimit: 5000,
+    totalViewsTarget: 20000,
+    totalViewsDelivered: 20000,
+    totalVisitsDelivered: 6680,
+    creditsBalance: 0,
+    
+    volumeBehavior: {
+      visitsVolume: 6680,
+      pagesPerVisit: 3,
+      expectedTotalPageViews: 20000,
+      bounceRatePercent: 32,
+      returnRatePercent: 12,
+      dwellTimeMinSeconds: 25,
+      dwellTimeMaxSeconds: 75,
+      randomizeDwellTime: true,
+      scheduleCurvePreset: 'business_hours',
+      hourlySchedule: HOURLY_PRESETS.business_hours
+    },
+    
+    urlRouting: {
+      entryUrls: [
+        'https://uttarakhandabtak.com/',
+        'https://uttarakhandabtak.com/uttarakhand-news/'
+      ],
+      innerUrls: [
+        'https://uttarakhandabtak.com/dehradun-updates/',
+        'https://uttarakhandabtak.com/char-dham-yatra-status/'
+      ],
+      exitUrls: [
+        'https://uttarakhandabtak.com/about-us/'
+      ],
+      innerPagesPerVisit: 3,
+      autoCrawlSitemap: true,
+      sitemapUrl: 'https://uttarakhandabtak.com/sitemap.xml',
+      crawlDepth: 2,
+      followInternalOnly: true
+    },
+    
+    trafficSplitting: {
+      directPercent: 25,
+      organicPercent: 50,
+      socialPercent: 20,
+      customPercent: 5,
+      searchEngines: [
+        { engine: 'google', percentage: 80 },
+        { engine: 'bing', percentage: 20 }
+      ],
+      organicKeywords: [
+        { keyword: 'uttarakhand ab tak latest updates', searchEngine: 'google', weight: 60 },
+        { keyword: 'dehradun breaking hindi news', searchEngine: 'google', weight: 40 }
+      ],
+      socialNetworks: [
+        { network: 'facebook', percentage: 60 },
+        { network: 'youtube', percentage: 40 }
+      ],
+      customReferrers: []
+    },
+    
+    deviceTargeting: {
+      mobileRatioPercent: 70,
+      desktopRatioPercent: 30,
+      desktopOS: { windows: 80, macos: 15, linux: 5 },
+      mobileOS: { android: 85, ios: 15 },
+      screenResolutions: [
+        { resolution: '390x844', type: 'mobile', selected: true },
+        { resolution: '1920x1080', type: 'desktop', selected: true }
+      ]
+    },
+    
+    geoProxy: {
+      targetingType: 'country',
+      provider: 'bright_data',
+      authType: 'http_basic',
+      sessionType: 'rotating',
+      countryAllocations: [
+        { countryCode: 'IN', countryName: 'India', flag: '🇮🇳', percentage: 90 },
+        { countryCode: 'US', countryName: 'United States', flag: '🇺🇸', percentage: 10 }
+      ]
+    },
+    
+    behavioralSimulation: {
+      enableScrollEvents: true,
+      scrollSessionsPercent: 85,
+      scrollDepthMinPercent: 30,
+      scrollDepthMaxPercent: 90,
+      scrollSpeed: 'natural_human',
+      enableInternalLinkClicks: true,
+      internalClickPercent: 60,
+      enableFormInteractions: false,
+      formInteractionPercent: 5,
+      enableMouseJitter: true,
+      mouseJitterIntensity: 'low',
+      adBlockBypassEmulation: true,
+      stealthCanvasNoise: true,
+      stealthWebGlVendorMask: true,
+      stealthAudioContextSpoof: true
+    },
+    
+    advancedTracking: {
+      enableUtm: false,
+      utmSource: '',
+      utmMedium: '',
+      utmCampaign: '',
+      utmTerm: '',
+      utmContent: '',
+      autoSyncAcceptLanguage: true,
+      customAcceptLanguage: 'hi-IN,hi;q=0.9,en;q=0.8',
+      customHeaders: [],
+      customCookies: [],
+      timezoneSpoofing: 'auto_by_geo',
+      
+      enableGoogleAnalytics: true,
+      gaMeasurementId: 'G-7NW92M1L8P',
+      gaApiSecret: '',
+      gaDispatchMode: 'hybrid',
+      gaSendPageViews: true,
+      gaSendScrollEvents: true,
+      gaSendUserEngagement: true,
+      gaSendFormEvents: false,
+      gaSendExternalClicks: false,
+      gaSessionDwellSeconds: 45
+    }
+  },
+
+  {
     id: 'cmp_984f2b1a',
+    projectCode: 'WT09X728LP1',
+    projectType: 'Professional',
     name: 'SaaS App Launch & Keyword Authority Booster',
     targetDomain: 'saasmetrics-cloud.io',
     status: 'RUNNING',
@@ -183,12 +467,24 @@ export const INITIAL_CAMPAIGNS: FullCampaignConfig[] = [
         { id: 'c_2', name: 'user_consent_granted', value: 'true', domain: 'saasmetrics-cloud.io', path: '/', enabled: true }
       ],
       
-      timezoneSpoofing: 'auto_by_geo'
+      timezoneSpoofing: 'auto_by_geo',
+      enableGoogleAnalytics: true,
+      gaMeasurementId: 'G-SMETRICS019',
+      gaApiSecret: '',
+      gaDispatchMode: 'hybrid',
+      gaSendPageViews: true,
+      gaSendScrollEvents: true,
+      gaSendUserEngagement: true,
+      gaSendFormEvents: true,
+      gaSendExternalClicks: true,
+      gaSessionDwellSeconds: 95
     }
   },
   
   {
     id: 'cmp_e520119c',
+    projectCode: 'WT08K412XQ9',
+    projectType: 'Enterprise',
     name: 'E-Commerce Black Friday Dwell & Cart Flow',
     targetDomain: 'nordicapparel-store.com',
     status: 'RUNNING',
@@ -315,7 +611,17 @@ export const INITIAL_CAMPAIGNS: FullCampaignConfig[] = [
       autoSyncAcceptLanguage: true,
       customHeaders: [],
       customCookies: [],
-      timezoneSpoofing: 'auto_by_geo'
+      timezoneSpoofing: 'auto_by_geo',
+      enableGoogleAnalytics: true,
+      gaMeasurementId: 'G-NORDIC992',
+      gaApiSecret: '',
+      gaDispatchMode: 'hybrid',
+      gaSendPageViews: true,
+      gaSendScrollEvents: true,
+      gaSendUserEngagement: true,
+      gaSendFormEvents: true,
+      gaSendExternalClicks: true,
+      gaSessionDwellSeconds: 120
     }
   }
 ];
