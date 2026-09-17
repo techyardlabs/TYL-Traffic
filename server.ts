@@ -18,10 +18,7 @@ process.on("unhandledRejection", (reason, promise) => {
 
 async function startServer() {
   const app = express();
-  // Bound to port 3000 for standard dev / Hostinger, with dynamic port support in production
-  const PORT = process.env.NODE_ENV === "production" && process.env.PORT && process.env.PORT !== "8080"
-    ? parseInt(process.env.PORT, 10)
-    : 3000;
+  const PORT = 3000;
 
   app.use(express.json());
 

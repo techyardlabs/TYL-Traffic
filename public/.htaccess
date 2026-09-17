@@ -1,0 +1,36 @@
+# ----------------------------------------------------------------------
+# LiteSpeed / Apache SPA Configuration for Hostinger & cPanel
+# ----------------------------------------------------------------------
+
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  
+  # Prevent rewriting existing files and folders
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Route all other URLs to index.html for Single Page App routing
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Prevent directory indexing
+Options -Indexes
+
+# Security & CORS Headers
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Access-Control-Allow-Origin "*"
+</IfModule>
+
+# MIME types
+<IfModule mod_mime.c>
+  AddType application/javascript js mjs
+  AddType text/css css
+  AddType image/svg+xml svg
+  AddType application/json json
+</IfModule>
